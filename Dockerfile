@@ -2,18 +2,16 @@ FROM ubuntu:latest AS jre
 
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y install curl binutils
 
-ENV RELEASE jdk-14.0.2+12
-ENV CHECKSUM 7d5ee7e06909b8a99c0d029f512f67b092597aa5b0e78c109bd59405bbfa74fe
+ARG RELEASE
+ARG CHECKSUM
 
 RUN mkdir -p /tmp/jdk/ && \
-	curl -s -L -o /tmp/jdk/jdk.tgz "https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk"
-
-RUN cd /tmp/jdk && \
+    cd /tmp/jdk && \
+	url="https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk" && \
+	echo "Downloading '$url' and expecting checksum $CHECKSUM" && \
+	curl -s -L -o jdk.tgz "$url" && \
 	echo "$CHECKSUM jdk.tgz" > SHA256SUMS && \
 	sha256sum --status --strict -c SHA256SUMS
-
-Run mkdir /jdk && \
-    tar -C jdk --strip-components=1 -xzf /tmp/jdk/jdk.tgz
 
 RUN for lib in libc6 zlib1g; do \
         listfile="/var/lib/dpkg/info/$lib.list"; \
@@ -36,17 +34,18 @@ RUN for lib in libc6 zlib1g; do \
 RUN echo -e "root:x:0:\nnogroup:x:65534:\n" > /target/etc/group; \
     echo -e "root:x:0:0:root:/root:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin" > /target/etc/passwd
 
-RUN /jdk/bin/jlink \
-  --add-modules java.desktop \
-  --add-modules java.sql \
-  --add-modules java.naming \
-  --add-modules jdk.unsupported \
-  --add-modules java.management \
-  --output /target/jre \
-  --no-header-files \
-  --no-man-pages \
-  --strip-debug \
-  --compress=2
+RUN tar -C /tmp/jdk --strip-components=1 -xzf /tmp/jdk/jdk.tgz && \
+	/tmp/jdk/bin/jlink \
+	--add-modules java.desktop \
+	--add-modules java.sql \
+	--add-modules java.naming \
+	--add-modules jdk.unsupported \
+	--add-modules java.management \
+	--output /target/jre \
+	--no-header-files \
+	--no-man-pages \
+	--strip-debug \
+	--compress=2
 
 
 
