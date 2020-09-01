@@ -36,11 +36,8 @@ RUN echo -e "root:x:0:\nnogroup:x:65534:\n" > /target/etc/group; \
 
 RUN tar -C /tmp/jdk --strip-components=1 -xzf /tmp/jdk/jdk.tgz && \
 	/tmp/jdk/bin/jlink \
-	--add-modules java.desktop \
-	--add-modules java.sql \
-	--add-modules java.naming \
+	--add-modules java.se \
 	--add-modules jdk.unsupported \
-	--add-modules java.management \
 	--output /target/jre \
 	--no-header-files \
 	--no-man-pages \

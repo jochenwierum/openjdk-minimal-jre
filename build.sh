@@ -96,7 +96,6 @@ update_tags() {
 while IFS=, read -r release checksum name tags; do
 	echo "=== $name ($release) ==="
 	hash=$(find_on_hub $name)
-	echo $hash
 	if [[ -z "$hash" ]]; then
 		echo "Image does not exist yet - creating a new one"
 		build_new "$release" "$checksum" "$name" "$tags"
