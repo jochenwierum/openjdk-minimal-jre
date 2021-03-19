@@ -1,0 +1,47 @@
+FROM alpine:latest AS jre
+
+RUN apk --no-cache upgrade && apk add --no-cache binutils curl
+
+ARG RELEASE
+ARG CHECKSUM
+
+RUN mkdir -p /tmp/jdk/ && \
+    cd /tmp/jdk && \
+	url="https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/alpine-linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk" && \
+	echo "Downloading '$url' and expecting checksum $CHECKSUM" && \
+	curl -s -L -o jdk.tgz "$url" && \
+	echo "$CHECKSUM  jdk.tgz" > SHA256SUMS && \
+	sha256sum -s -c SHA256SUMS
+
+RUN \
+    mkdir -p /tmp/jdk /target/lib; \
+	for lib in musl zlib; do \
+		apk info -L $lib 2>/dev/null | tail -n +2 | head -n -1 | \
+		while read -r file; do \
+			cp "$file" "/target/$file" ; \
+		done \
+	done; \
+    mkdir -p /target/tmp /target/etc; \
+    chmod 777 /target/tmp && chmod +t /target/tmp
+
+RUN echo -e "root:x:0:\nnogroup:x:65534:\n" > /target/etc/group; \
+    echo -e "root:x:0:0:root:/root:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin" > /target/etc/passwd
+
+RUN tar -C /tmp/jdk --strip-components=1 -xzf /tmp/jdk/jdk.tgz && \
+	/tmp/jdk/bin/jlink \
+	--add-modules java.se \
+	--add-modules jdk.unsupported \
+	--output /target/jre \
+	--no-header-files \
+	--no-man-pages \
+	--strip-debug \
+	--compress=2
+
+
+
+FROM scratch
+
+COPY --from=jre /target /
+
+USER 65534
+ENTRYPOINT [ "/jre/bin/java" ]
