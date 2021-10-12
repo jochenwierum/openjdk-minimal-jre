@@ -1,6 +1,7 @@
 #!/bin/bash
 
 IMAGE=jochenwierum/openjdk-minimal-jre
+skip=${1:-0}
 
 find_on_hub() {
 	tag="$1"
@@ -15,19 +16,21 @@ find_on_hub() {
 		-H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
 		-o /dev/null \
 		-D - \
-		| awk -F: '/^Docker-Content-Digest/ {gsub(/ /,""); print $2":"$3}'
+		| awk -F: '/^docker-content-digest/ {gsub(/ /,""); print $2":"$3}'
 }
 
 build_image() {
-	release="$1"
-	checksum="$2"
-	checksum_musl="$3"
-	name="$4"
+	release="$1"; shift
+	adoptium="$1"; shift
+	checksum="$1"; shift
+	checksum_musl="$1"; shift
+	name="$1"; shift
 
 	docker build \
 		-t "$IMAGE:$name" \
 		--build-arg "RELEASE=$release" \
 		--build-arg "CHECKSUM=$checksum" \
+        --build-arg "ADOPTIUM=$adoptium" \
 		. \
 		|| exit 2
 
@@ -36,6 +39,7 @@ build_image() {
 			-t "$IMAGE:$name-musl" \
 			--build-arg "RELEASE=$release" \
 			--build-arg "CHECKSUM=$checksum_musl" \
+			--build-arg "ADOPTIUM=$adoptium" \
 			. \
 			|| exit 2
 	fi
@@ -72,14 +76,15 @@ push_images() {
 }
 
 build_new() {
-	release="$1"
-	checksum="$2"
-	checksum_musl="$3"
-	name="$4"
-	tags="$5"
+	release="$1"; shift
+	adoptium="$1"; shift
+	checksum="$1"; shift
+	checksum_musl="$1"; shift
+	name="$1"; shift
+	tags="$1"; shift
 
 	echo "Building image"
-	build_image "$release" "$checksum" "$checksum_musl" "$name"
+	build_image "$release" "$adoptium" "$checksum" "$checksum_musl" "$name"
 	
 	echo "Creating additional tags"
 	add_tags "$name" "$tags" "$checksum_musl"
@@ -121,15 +126,20 @@ update_tags() {
 	done
 }
 
-while IFS=, read -r release checksum checksum_musl name tags; do
+while IFS=, read -r release adoptium checksum checksum_musl name tags; do
+    if [ $skip -gt 0 ]; then
+        skip=$(( skip - 1 ))
+        continue
+    fi
+
 	echo "=== $name ($release) ==="
 	hash=$(find_on_hub $name)
 	if [[ -z "$hash" ]]; then
 		echo "Image does not exist yet - creating a new one"
-		build_new "$release" "$checksum" "$checksum_musl" "$name" "$tags"
+		build_new "$release" "$adoptium" "$checksum" "$checksum_musl" "$name" "$tags"
 	else
 		echo "Image already exists - verifying tags"
-		update_tags "$hash" "$name" "$tags" "$checksum_musl"
+		update_tags "$hash" "$adoptium" "$name" "$tags" "$checksum_musl"
 	fi
 	echo ""
 done < versions.csv

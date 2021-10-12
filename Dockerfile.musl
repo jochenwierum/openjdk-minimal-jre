@@ -4,10 +4,15 @@ RUN apk --no-cache upgrade && apk add --no-cache binutils curl
 
 ARG RELEASE
 ARG CHECKSUM
+ARG ADOPTIUM
 
 RUN mkdir -p /tmp/jdk/ && \
     cd /tmp/jdk && \
-	url="https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/alpine-linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk" && \
+    if [ $ADOPTIUM = true ]; then \
+    	url="https://api.adoptium.net/v3/binary/version/$RELEASE/alpine-linux/x64/jdk/hotspot/normal/eclipse?project=jdk"; \
+    else \
+        url="https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/alpine-linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk"; \
+    fi; \
 	echo "Downloading '$url' and expecting checksum $CHECKSUM" && \
 	curl -s -L -o jdk.tgz "$url" && \
 	echo "$CHECKSUM  jdk.tgz" > SHA256SUMS && \

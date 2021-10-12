@@ -4,10 +4,15 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install curl binutils
 
 ARG RELEASE
 ARG CHECKSUM
+ARG ADOPTIUM
 
 RUN mkdir -p /tmp/jdk/ && \
     cd /tmp/jdk && \
-	url="https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk" && \
+    if [ $ADOPTIUM = true ]; then \
+    	url="https://api.adoptium.net/v3/binary/version/$RELEASE/linux/x64/jdk/hotspot/normal/eclipse?project=jdk"; \
+    else \
+        url="https://api.adoptopenjdk.net/v3/binary/version/$RELEASE/linux/x64/jdk/hotspot/normal/adoptopenjdk?project=jdk"; \
+    fi; \
 	echo "Downloading '$url' and expecting checksum $CHECKSUM" && \
 	curl -s -L -o jdk.tgz "$url" && \
 	echo "$CHECKSUM jdk.tgz" > SHA256SUMS && \
